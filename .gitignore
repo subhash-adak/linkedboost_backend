@@ -12,4 +12,6 @@
 /__pycache__
 /.mypy_cache/
 /.coverage
-/.coverage.*    
+/.coverage.* 
+/app/__pycache__
+/app/auth/__pycache__
