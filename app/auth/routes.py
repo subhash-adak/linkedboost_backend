@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from ..schemas import RegisterUser, LoginUser
 from ..database import db
 from ..auth.utils import hash_password, verify_password, create_token
-from ..auth.email_verification import send_verification_email
+from ..auth.email_verification import send_reset_otp, send_verification_email
 import uuid
 import random, string
 from fastapi import Request, Body
@@ -124,7 +124,7 @@ async def forgot_password(
     otp = generate_otp()
     await db.users.update_one({"email": email}, {"$set": {"reset_otp": otp}})
 
-    await send_verification_email(email, otp)
+    await send_reset_otp(email, otp)
     return {"msg": "OTP sent to your email"}
 
 
