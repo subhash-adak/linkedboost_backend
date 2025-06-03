@@ -4,7 +4,7 @@ from ..config import settings
 
 async def send_verification_email(email: str, token: str):
     verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
-    message = MIMEText(f"Click to verify your account: {verification_link}")
+    message = MIMEText(f"Click to verify your account:\n{verification_link}")
     message["Subject"] = "Verify your email"
     message["From"] = settings.EMAIL_USER
     message["To"] = email
