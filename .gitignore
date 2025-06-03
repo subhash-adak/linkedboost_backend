@@ -1,0 +1,15 @@
+/.venv
+/.env
+/.pytest_cache
+/.mypy_cache
+/.coverage
+/.coverage.*
+/.tox
+/.hypothesis
+/.pytest_cache  
+/.ruff_cache
+/.ruff_cache/
+/__pycache__
+/.mypy_cache/
+/.coverage
+/.coverage.*    
