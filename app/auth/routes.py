@@ -8,7 +8,7 @@ import random, string
 from fastapi import Request, Body
 from ..auth.email_verification import send_verification_email  # reusing for OTP email
 from fastapi.responses import JSONResponse
-
+from pydantic import BaseModel, EmailStr
 
 router = APIRouter()
 
@@ -106,6 +106,66 @@ def generate_otp(length=8):
 #     return {"msg": "OTP sent to your email"}
 
 
+# @router.post("/forgot-password")
+# async def forgot_password(
+#     email: str = Body(...),
+#     puzzle_a: int = Body(...),
+#     puzzle_b: int = Body(...),
+#     puzzle_answer: int = Body(...)
+# ):
+#     # Dynamically validate the answer
+#     if puzzle_answer != puzzle_a * puzzle_b:
+#         raise HTTPException(status_code=400, detail="Puzzle failed. Are you human?")
+
+#     user = await db.users.find_one({"email": email})
+#     if not user:
+#         raise HTTPException(status_code=404, detail="Email not found")
+
+#     otp = generate_otp()
+#     await db.users.update_one({"email": email}, {"$set": {"reset_otp": otp}})
+
+#     await send_reset_otp(email, otp)
+#     return {"msg": "OTP sent to your registered email"}
+
+
+# @router.post("/reset-password")
+# async def reset_password(email: str = Body(...), otp: str = Body(...), new_password: str = Body(...)):
+#     user = await db.users.find_one({"email": email, "reset_otp": otp})
+#     if not user:
+#         raise HTTPException(status_code=400, detail="Invalid OTP or email")
+
+#     hashed = hash_password(new_password)
+#     await db.users.update_one(
+#         {"email": email},
+#         {"$set": {"hashed_password": hashed}, "$unset": {"reset_otp": ""}}
+#     )
+#     return {"msg": "Password updated successfully"}
+
+class ResendEmailRequest(BaseModel):
+    email: EmailStr
+@router.post("/resend-verification")
+async def resend_verification(request: ResendEmailRequest):
+    user = await db.users.find_one({"email": request.email})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.get("is_verified"):
+        raise HTTPException(status_code=400, detail="Email is already verified")
+
+    # Generate a new token and update it
+    new_token = str(uuid.uuid4())
+    await db.users.update_one(
+        {"email": request.email},
+        {"$set": {"verification_token": new_token}}
+    )
+
+    await send_verification_email(request.email, new_token)
+    return {"msg": "Verification email resent"}
+
+
+from datetime import datetime
+
 @router.post("/forgot-password")
 async def forgot_password(
     email: str = Body(...),
@@ -113,7 +173,6 @@ async def forgot_password(
     puzzle_b: int = Body(...),
     puzzle_answer: int = Body(...)
 ):
-    # Dynamically validate the answer
     if puzzle_answer != puzzle_a * puzzle_b:
         raise HTTPException(status_code=400, detail="Puzzle failed. Are you human?")
 
@@ -122,11 +181,44 @@ async def forgot_password(
         raise HTTPException(status_code=404, detail="Email not found")
 
     otp = generate_otp()
-    await db.users.update_one({"email": email}, {"$set": {"reset_otp": otp}})
+    await db.users.update_one(
+        {"email": email},
+        {
+            "$set": {
+                "reset_otp": otp,
+                "reset_otp_created_at": datetime.utcnow()
+            }
+        }
+    )
 
     await send_reset_otp(email, otp)
-    return {"msg": "OTP sent to your email"}
+    return {"msg": "OTP sent to your registered email"}
 
+
+@router.post("/resend-otp")
+async def resend_otp(email: str = Body(...)):
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not found")
+
+    if not user.get("reset_otp"):
+        raise HTTPException(status_code=400, detail="No OTP request found. Please use forgot-password first.")
+
+    otp = generate_otp()
+    await db.users.update_one(
+        {"email": email},
+        {
+            "$set": {
+                "reset_otp": otp,
+                "reset_otp_created_at": datetime.utcnow()
+            }
+        }
+    )
+    await send_reset_otp(email, otp)
+    return {"msg": "OTP resent to your registered email"}
+
+
+from datetime import datetime, timedelta
 
 @router.post("/reset-password")
 async def reset_password(email: str = Body(...), otp: str = Body(...), new_password: str = Body(...)):
@@ -134,9 +226,19 @@ async def reset_password(email: str = Body(...), otp: str = Body(...), new_passw
     if not user:
         raise HTTPException(status_code=400, detail="Invalid OTP or email")
 
+    created_at = user.get("reset_otp_created_at")
+    if not created_at:
+        raise HTTPException(status_code=400, detail="OTP timestamp missing")
+
+    if datetime.utcnow() > created_at + timedelta(minutes=5):
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+
     hashed = hash_password(new_password)
     await db.users.update_one(
         {"email": email},
-        {"$set": {"hashed_password": hashed}, "$unset": {"reset_otp": ""}}
+        {
+            "$set": {"hashed_password": hashed},
+            "$unset": {"reset_otp": "", "reset_otp_created_at": ""}
+        }
     )
     return {"msg": "Password updated successfully"}
