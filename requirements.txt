@@ -7,7 +7,7 @@ python-jose[cryptography]
 email-validator
 pydantic-settings
 selenium
---no-cache-dir pycryptodome
+pycryptodome
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
