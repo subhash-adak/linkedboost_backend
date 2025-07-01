@@ -15,4 +15,4 @@
 /.coverage.* 
 /app/__pycache__
 /app/auth/__pycache__
-/.env
+.env
