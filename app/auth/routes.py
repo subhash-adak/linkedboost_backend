@@ -587,3 +587,14 @@ async def send_connection_requests(request: Request, config: CampaignConfig):
         "total_sent": total_sent,
         "pages_processed": config.end_page - config.start_page + 1
     }
+
+
+
+
+@app.get("/")
+async def health_check():
+    return {
+        "status": "Backend API Server is running",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
