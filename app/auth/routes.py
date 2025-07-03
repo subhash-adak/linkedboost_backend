@@ -591,7 +591,7 @@ async def send_connection_requests(request: Request, config: CampaignConfig):
 
 
 
-@app.get("/")
+@router.get("/")
 async def health_check():
     return {
         "status": "Backend API Server is running",
