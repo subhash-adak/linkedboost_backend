@@ -590,7 +590,7 @@ async def send_connection_requests(request: Request, config: CampaignConfig):
 
 
 
-
+@router.head("/")
 @router.get("/")
 async def health_check():
     return {
